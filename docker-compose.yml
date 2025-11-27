@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # MongoDB Service (Database Setup requirement)
+  mongo-db:
+    image: mongo:latest
+    container_name: mongo-db
+    volumes:
+      # Persistent volume for MongoDB data
+      - mongo-data:/data/db
+    restart: always
+
+  # Backend Service (Express/Node.js)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    # Port 8080 is exposed for the Nginx proxy to access it internally
+    ports:
+      - "8080"
+    environment:
+      # You can optionally set environment variables here
+      NODE_ENV: production
+    depends_on:
+      - mongo-db
+    restart: always
+
+  # Frontend Service (Angular/Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      # Expose port 80 to the host (Deployment requirement)
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
+
+# Define the persistent volume for MongoDB
+volumes:
+  mongo-data:
