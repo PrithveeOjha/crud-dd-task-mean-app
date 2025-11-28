@@ -1,14 +1,16 @@
 pipeline {
     agent any
     environment {
-        // SSH_OPTS is now defined globally as a non-step variable
+    
         SSH_OPTS = '-o StrictHostKeyChecking=no -o PubkeyAuthentication=no -o PreferredAuthentications=password -o IdentitiesOnly=yes'
         DOCKER_HUB_USERNAME = 'prithv33' // Your Docker Hub Username
-        VM_HOST = '3.109.157.120'       // Public IP of your Ubuntu VM
-        VM_USER = 'ubuntu'              // SSH user for your VM (Used as global env)
+        VM_HOST = '3.109.157.120' // Public IP of your Ubuntu VM
+        VM_USER = 'ubuntu' // SSH user for your VM
 
         DOCKER_HUB_CREDENTIALS = 'dockerhub-creds'
-        // REMOVE: SSH_CREDENTIALS = 'vm-ssh-creds' (It's not used and may cause confusion)
+        
+        // This is only here to allow the deployment stage to use the DOCKER_PASSWORD
+        DOCKER_PASSWORD_CREDS = 'dockerhub-creds' 
 
         BACKEND_IMAGE = "${DOCKER_HUB_USERNAME}/mean-backend"
         FRONTEND_IMAGE = "${DOCKER_HUB_USERNAME}/mean-frontend"
