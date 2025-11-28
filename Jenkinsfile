@@ -48,22 +48,24 @@ pipeline {
         }
         stage('Deploy to VM') {
             steps {
-                sshagent(credentials: [SSH_CREDENTIALS]) {
+                
+                withCredentials([usernamePassword(credentialsId: 'vm-password-creds', usernameVariable: 'VM_USER', passwordVariable: 'VM_PASSWORD')]) { // <--- NEW STRUCTURE
+
+                    
                     // 1. Create directory on remote VM if it doesn't exist
-                    sh "ssh ${VM_USER}@${VM_HOST} 'mkdir -p ${REMOTE_APP_DIR}'"
+                    sh "sshpass -p ${VM_PASSWORD} ssh -o StrictHostKeyChecking=no ${VM_USER}@${VM_HOST} 'mkdir -p ${REMOTE_APP_DIR}'"
 
                     // 2. Copy docker-compose.yml to the remote VM
-                    sh "scp -o StrictHostKeyChecking=no docker-compose.yml ${VM_USER}@${VM_HOST}:${REMOTE_APP_DIR}/docker-compose.yml"
+                    sh "sshpass -p ${VM_PASSWORD} scp -o StrictHostKeyChecking=no docker-compose.yml ${VM_USER}@${VM_HOST}:${REMOTE_APP_DIR}/docker-compose.yml"
                     
                     // 3. Log in to Docker Hub on the VM to pull the new images
-                    // This assumes a separate DOCKER_PASSWORD environment variable or Secret Text credential is set up in Jenkins
-                    sh "ssh ${VM_USER}@${VM_HOST} 'docker login -u ${DOCKER_HUB_USERNAME} -p \$(echo ${DOCKER_PASSWORD})'" 
+                    sh "sshpass -p ${VM_PASSWORD} ssh -o StrictHostKeyChecking=no ${VM_USER}@${VM_HOST} 'docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_PASSWORD}'" 
 
                     // 4. Pull latest images and restart containers (pull, stop, remove old, recreate new)
-                    sh "ssh ${VM_USER}@${VM_HOST} 'cd ${REMOTE_APP_DIR} && docker compose pull && docker compose up -d'"
+                    sh "sshpass -p ${VM_PASSWORD} ssh -o StrictHostKeyChecking=no ${VM_USER}@${VM_HOST} 'cd ${REMOTE_APP_DIR} && docker compose pull && docker compose up -d'"
                     
                     echo "Deployment completed. Application is accessible at http://${VM_HOST}"
-                }
+                } 
             }
         }
     }
