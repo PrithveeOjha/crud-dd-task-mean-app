@@ -51,7 +51,9 @@ pipeline {
                 
                 withCredentials([usernamePassword(credentialsId: 'vm-password-creds', usernameVariable: 'VM_USER', passwordVariable: 'VM_PASSWORD')]) { // <--- NEW STRUCTURE
 
-                    
+                    // SSH options to force password authentication and bypass key checks
+                    def SSH_OPTS = "-o StrictHostKeyChecking=no -o PubkeyAuthentication=no -o PreferredAuthentications=password"
+
                     // 1. Create directory on remote VM if it doesn't exist
                     sh "sshpass -p ${VM_PASSWORD} ssh -o StrictHostKeyChecking=no ${VM_USER}@${VM_HOST} 'mkdir -p ${REMOTE_APP_DIR}'"
 
