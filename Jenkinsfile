@@ -18,31 +18,31 @@ pipeline {
         stage('Build Backend Image') {
             steps {
                 script {
-                    sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} ./backend"
+                    sh "/usr/bin/docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} ./backend"
                 }
             }
         }
         stage('Build Frontend Image') {
             steps {
                 script {
-                    sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
+                    sh "/usr/bin/docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
                 }
             }
         }
         stage('Tag and Push Images to Docker Hub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: DOCKER_HUB_CREDENTIALS, passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USER')]) {
-                    sh "docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}"
+                    sh "/usr/bin/docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}"
                     
                     // Tag with 'latest' and build number
-                    sh "docker tag ${BACKEND_IMAGE}:${BUILD_NUMBER} ${BACKEND_IMAGE}:latest"
-                    sh "docker tag ${FRONTEND_IMAGE}:${BUILD_NUMBER} ${FRONTEND_IMAGE}:latest"
+                    sh "/usr/bin/docker tag ${BACKEND_IMAGE}:${BUILD_NUMBER} ${BACKEND_IMAGE}:latest"
+                    sh "/usr/bin/docker tag ${FRONTEND_IMAGE}:${BUILD_NUMBER} ${FRONTEND_IMAGE}:latest"
                     
                     // Push all tags
-                    sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
-                    sh "docker push ${BACKEND_IMAGE}:latest"
-                    sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
-                    sh "docker push ${FRONTEND_IMAGE}:latest"
+                    sh "/usr/bin/docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
+                    sh "/usr/bin/docker push ${BACKEND_IMAGE}:latest"
+                    sh "/usr/bin/docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
+                    sh "/usr/bin/docker push ${FRONTEND_IMAGE}:latest"
                 }
             }
         }
