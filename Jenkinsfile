@@ -51,18 +51,18 @@ pipeline {
                 
                 withCredentials([usernamePassword(credentialsId: 'vm-password-creds', usernameVariable: 'VM_USER', passwordVariable: 'VM_PASSWORD')]) { // <--- NEW STRUCTURE
 
-                                        
-                    // 1. Create directory on remote VM if it doesn't exist
-                    sh "sshpass -p ${VM_PASSWORD} ssh -o StrictHostKeyChecking=no ${VM_USER}@${VM_HOST} 'mkdir -p ${REMOTE_APP_DIR}'"
+                    // 1. Create directory on remote VM
+                    sh "sshpass -p ${VM_PASSWORD} ssh ${SSH_OPTS} ${VM_USER}@${VM_HOST} 'mkdir -p ${REMOTE_APP_DIR}'"
 
                     // 2. Copy docker-compose.yml to the remote VM
-                    sh "sshpass -p ${VM_PASSWORD} scp -o StrictHostKeyChecking=no docker-compose.yml ${VM_USER}@${VM_HOST}:${REMOTE_APP_DIR}/docker-compose.yml"
+                    sh "sshpass -p ${VM_PASSWORD} scp ${SSH_OPTS} docker-compose.yml ${VM_USER}@${VM_HOST}:${REMOTE_APP_DIR}/docker-compose.yml"
                     
-                    // 3. Log in to Docker Hub on the VM to pull the new images
-                    sh "sshpass -p ${VM_PASSWORD} ssh -o StrictHostKeyChecking=no ${VM_USER}@${VM_HOST} 'docker login -u ${DOCKER_HUB_USERNAME} -p ${DOCKER_PASSWORD}'" 
+                    // 3. Log in to Docker Hub on the VM
+                    sh "sshpass -p ${VM_PASSWORD} ssh ${SSH_OPTS} ${VM_USER}@${VM_HOST} 'docker login -u ${DOCKER_HUB_USERNAME} -p \$(echo ${DOCKER_PASSWORD})'" 
 
-                    // 4. Pull latest images and restart containers (pull, stop, remove old, recreate new)
-                    sh "sshpass -p ${VM_PASSWORD} ssh -o StrictHostKeyChecking=no ${VM_USER}@${VM_HOST} 'cd ${REMOTE_APP_DIR} && docker compose pull && docker compose up -d'"
+                    // 4. Pull latest images and restart containers
+                    sh "sshpass -p ${VM_PASSWORD} ssh ${SSH_OPTS} ${VM_USER}@${VM_HOST} 'cd ${REMOTE_APP_DIR} && docker compose pull && docker compose up -d'"
+
                     
                     echo "Deployment completed. Application is accessible at http://${VM_HOST}"
                 } 
