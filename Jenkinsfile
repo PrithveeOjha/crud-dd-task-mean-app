@@ -1,14 +1,14 @@
 pipeline {
     agent any
     environment {
-        # === USER CONFIGURATION START ===
+
         DOCKER_HUB_USERNAME = 'prithv33' // Your Docker Hub Username
         VM_HOST = '3.109.157.120'       // Public IP of your Ubuntu VM
         VM_USER = 'ubuntu'           // SSH user for your VM
-        # Jenkins Credentials IDs
+
         DOCKER_HUB_CREDENTIALS = 'dockerhub-creds'
         SSH_CREDENTIALS = 'vm-ssh-creds'
-        # === USER CONFIGURATION END ===
+
 
         BACKEND_IMAGE = "${DOCKER_HUB_USERNAME}/mean-backend"
         FRONTEND_IMAGE = "${DOCKER_HUB_USERNAME}/mean-frontend"
