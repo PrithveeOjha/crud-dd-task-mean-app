@@ -1,74 +1,73 @@
 pipeline {
     agent any
     environment {
-    
-        SSH_OPTS = '-o StrictHostKeyChecking=no -o PubkeyAuthentication=no -o PreferredAuthentications=password -o IdentitiesOnly=yes'
-        DOCKER_HUB_USERNAME = 'prithv33' // Your Docker Hub Username
-        VM_HOST = '3.109.157.120' // Public IP of your Ubuntu VM
-        VM_USER = 'ubuntu' // SSH user for your VM
+        // VM_HOST is kept for the final success message and is not used for connection
+        DOCKER_HUB_USERNAME = 'prithv33' 
+        VM_HOST = '3.109.157.120' 
+        VM_USER = 'ubuntu' // Used for setting the correct deployment path
 
-        DOCKER_HUB_CREDENTIALS = 'dockerhub-creds'
+        // Only Docker Hub credential needed now
+        DOCKER_HUB_CREDENTIALS = 'dockerhub-creds' 
         
-        // This is only here to allow the deployment stage to use the DOCKER_PASSWORD
-        DOCKER_PASSWORD_CREDS = 'dockerhub-creds' 
-
         BACKEND_IMAGE = "${DOCKER_HUB_USERNAME}/mean-backend"
         FRONTEND_IMAGE = "${DOCKER_HUB_USERNAME}/mean-frontend"
-        REMOTE_APP_DIR = "/home/${VM_USER}/mean-app"
+        // This path is local on the VM where Jenkins is running
+        REMOTE_APP_DIR = "/home/${VM_USER}/mean-app" 
     }
     stages {
+        stage('Setup Node.js Tool') {
+            // Must match the name set in Manage Jenkins > Global Tool Configuration
+            tools {
+                nodejs 'NodeJS-18' 
+            }
+            steps {
+                echo 'Node.js environment loaded.'
+            }
+        }
         stage('Build Backend Image') {
             steps {
-                script {
-                    sh "/usr/bin/docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} ./backend"
-                }
+                // Running Docker directly on the local VM's daemon
+                sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} ./backend"
             }
         }
         stage('Build Frontend Image') {
             steps {
-                script {
-                    sh "/usr/bin/docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
-                }
+                sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
             }
         }
         stage('Tag and Push Images to Docker Hub') {
             steps {
                 withCredentials([usernamePassword(credentialsId: DOCKER_HUB_CREDENTIALS, passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USER')]) {
-                    sh "/usr/bin/docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}"
+                    sh "docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}"
 
-                    // Tag with 'latest' and build number
-                    sh "/usr/bin/docker tag ${BACKEND_IMAGE}:${BUILD_NUMBER} ${BACKEND_IMAGE}:latest"
-                    sh "/usr/bin/docker tag ${FRONTEND_IMAGE}:${BUILD_NUMBER} ${FRONTEND_IMAGE}:latest"
+                    sh "docker tag ${BACKEND_IMAGE}:${BUILD_NUMBER} ${BACKEND_IMAGE}:latest"
+                    sh "docker tag ${FRONTEND_IMAGE}:${BUILD_NUMBER} ${FRONTEND_IMAGE}:latest"
 
-                    // Push all tags
-                    sh "/usr/bin/docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
-                    sh "/usr/bin/docker push ${BACKEND_IMAGE}:latest"
-                    sh "/usr/bin/docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
-                    sh "/usr/bin/docker push ${FRONTEND_IMAGE}:latest"
+                    sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
+                    sh "docker push ${BACKEND_IMAGE}:latest"
+                    sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
+                    sh "docker push ${FRONTEND_IMAGE}:latest"
                 }
             }
         }
-        stage('Deploy to VM') {
+        stage('Deploy Locally on VM') {
             steps {
-                // IMPORTANT: The VM_USER is read from the top environment block, 
-                // and VM_PASSWORD is injected here.
-                withCredentials([usernamePassword(credentialsId: 'vm-password-creds', passwordVariable: 'VM_PASSWORD', usernameVariable: 'IGNORED_USER')]) { 
+                // Copy the necessary file and run Docker Compose in the target directory
+                sh """
+                    
+                    mkdir -p ${REMOTE_APP_DIR}
+                    
+                    
+                    cp docker-compose.yml ${REMOTE_APP_DIR}/docker-compose.yml
 
-                    // 1. Create directory on remote VM
-                    sh "sshpass -p ${VM_PASSWORD} ssh ${SSH_OPTS} ${VM_USER}@${VM_HOST} 'mkdir -p ${REMOTE_APP_DIR}'"
+                    cd ${REMOTE_APP_DIR}
+                    
+                    docker compose pull
+                    docker compose up -d
 
-                    // 2. Copy docker-compose.yml to the remote VM
-                    sh "sshpass -p ${VM_PASSWORD} scp ${SSH_OPTS} docker-compose.yml ${VM_USER}@${VM_HOST}:${REMOTE_APP_DIR}/docker-compose.yml"
-
-                    // 3. Log in to Docker Hub on the VM (NOTE: DOCKER_PASSWORD is still masked)
-                    sh "sshpass -p ${VM_PASSWORD} ssh ${SSH_OPTS} ${VM_USER}@${VM_HOST} 'docker login -u ${DOCKER_HUB_USERNAME} -p \$(echo ${DOCKER_PASSWORD})'"
-
-                    // 4. Pull latest images and restart containers
-                    sh "sshpass -p ${VM_PASSWORD} ssh ${SSH_OPTS} ${VM_USER}@${VM_HOST} 'cd ${REMOTE_APP_DIR} && docker compose pull && docker compose up -d'"
-
-
-                    echo "Deployment completed. Application is accessible at http://${VM_HOST}"
-                }
+                    echo "Deployment successful on VM."
+                """
+                echo "Application is accessible at http://${VM_HOST}"
             }
         }
     }
