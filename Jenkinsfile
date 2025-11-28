@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-	SSH_OPTS = '-o StrictHostKeyChecking=no -o PubkeyAuthentication=no -o PreferredAuthentications=password'
+	SSH_OPTS = '-o StrictHostKeyChecking=no -o PubkeyAuthentication=no -o PreferredAuthentications=password -o IdentitiesOnly=yes'
         DOCKER_HUB_USERNAME = 'prithv33' // Your Docker Hub Username
         VM_HOST = '3.109.157.120'       // Public IP of your Ubuntu VM
         VM_USER = 'ubuntu'           // SSH user for your VM
