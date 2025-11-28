@@ -1,14 +1,14 @@
 pipeline {
     agent any
     environment {
-	SSH_OPTS = '-o StrictHostKeyChecking=no -o PubkeyAuthentication=no -o PreferredAuthentications=password -o IdentitiesOnly=yes'
+        // SSH_OPTS is now defined globally as a non-step variable
+        SSH_OPTS = '-o StrictHostKeyChecking=no -o PubkeyAuthentication=no -o PreferredAuthentications=password -o IdentitiesOnly=yes'
         DOCKER_HUB_USERNAME = 'prithv33' // Your Docker Hub Username
-        VM_HOST = '3.109.157.120'       // Public IP of your Ubuntu VM
-        VM_USER = 'ubuntu'           // SSH user for your VM
+        VM_HOST = '3.109.157.120'       // Public IP of your Ubuntu VM
+        VM_USER = 'ubuntu'              // SSH user for your VM (Used as global env)
 
         DOCKER_HUB_CREDENTIALS = 'dockerhub-creds'
-        SSH_CREDENTIALS = 'vm-ssh-creds'
-
+        // REMOVE: SSH_CREDENTIALS = 'vm-ssh-creds' (It's not used and may cause confusion)
 
         BACKEND_IMAGE = "${DOCKER_HUB_USERNAME}/mean-backend"
         FRONTEND_IMAGE = "${DOCKER_HUB_USERNAME}/mean-frontend"
@@ -33,11 +33,11 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: DOCKER_HUB_CREDENTIALS, passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USER')]) {
                     sh "/usr/bin/docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}"
-                    
+
                     // Tag with 'latest' and build number
                     sh "/usr/bin/docker tag ${BACKEND_IMAGE}:${BUILD_NUMBER} ${BACKEND_IMAGE}:latest"
                     sh "/usr/bin/docker tag ${FRONTEND_IMAGE}:${BUILD_NUMBER} ${FRONTEND_IMAGE}:latest"
-                    
+
                     // Push all tags
                     sh "/usr/bin/docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
                     sh "/usr/bin/docker push ${BACKEND_IMAGE}:latest"
@@ -48,24 +48,25 @@ pipeline {
         }
         stage('Deploy to VM') {
             steps {
-                
-                withCredentials([usernamePassword(credentialsId: 'vm-password-creds', usernameVariable: 'VM_USER', passwordVariable: 'VM_PASSWORD')]) { // <--- NEW STRUCTURE
+                // IMPORTANT: The VM_USER is read from the top environment block, 
+                // and VM_PASSWORD is injected here.
+                withCredentials([usernamePassword(credentialsId: 'vm-password-creds', passwordVariable: 'VM_PASSWORD', usernameVariable: 'IGNORED_USER')]) { 
 
                     // 1. Create directory on remote VM
                     sh "sshpass -p ${VM_PASSWORD} ssh ${SSH_OPTS} ${VM_USER}@${VM_HOST} 'mkdir -p ${REMOTE_APP_DIR}'"
 
                     // 2. Copy docker-compose.yml to the remote VM
                     sh "sshpass -p ${VM_PASSWORD} scp ${SSH_OPTS} docker-compose.yml ${VM_USER}@${VM_HOST}:${REMOTE_APP_DIR}/docker-compose.yml"
-                    
-                    // 3. Log in to Docker Hub on the VM
-                    sh "sshpass -p ${VM_PASSWORD} ssh ${SSH_OPTS} ${VM_USER}@${VM_HOST} 'docker login -u ${DOCKER_HUB_USERNAME} -p \$(echo ${DOCKER_PASSWORD})'" 
+
+                    // 3. Log in to Docker Hub on the VM (NOTE: DOCKER_PASSWORD is still masked)
+                    sh "sshpass -p ${VM_PASSWORD} ssh ${SSH_OPTS} ${VM_USER}@${VM_HOST} 'docker login -u ${DOCKER_HUB_USERNAME} -p \$(echo ${DOCKER_PASSWORD})'"
 
                     // 4. Pull latest images and restart containers
                     sh "sshpass -p ${VM_PASSWORD} ssh ${SSH_OPTS} ${VM_USER}@${VM_HOST} 'cd ${REMOTE_APP_DIR} && docker compose pull && docker compose up -d'"
 
-                    
+
                     echo "Deployment completed. Application is accessible at http://${VM_HOST}"
-                } 
+                }
             }
         }
     }
